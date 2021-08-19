@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from "react";
+import React, { FC, MouseEventHandler, useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
 import {
   TransformWrapper,
@@ -51,7 +51,8 @@ const BoundingBoxLabel: FC<BoundingBoxLabelProps> = ({ box, scale }) => {
 interface BoundingBoxProps {
   box: IAnnotation;
   scale: number;
-  deleteBox?: () => void;
+  remove?: () => void;
+  relabel?: (newLabel: string) => void;
 }
 
 const StyledBox = styled.div<BoundingBoxProps>`
@@ -141,142 +142,16 @@ const StyledBox = styled.div<BoundingBoxProps>`
   }
 `;
 
-// class BoundingBox extends React.Component<BoundingBoxProps, any> {
-//   draggable?: Draggable;
-//   rightDraggable?: Draggable;
-//   leftDraggable?: Draggable;
-//   topDraggable?: Draggable;
-//   bottomDraggable?: Draggable;
-//
-//   constructor(props: BoundingBoxProps) {
-//     super(props);
-//
-//     this.state = {
-//       scale: props.scale,
-//       box: props.box,
-//       deleteBox: props.deleteBox
-//     };
-//   }
-//
-//   componentDidMount() {
-//     const { box } = this.state;
-//     const state   = this.state;
-//     const boxId   = `box-${box.label}-${box.x}-${box.y}`;
-//     console.log('creating draggables');
-//     console.log(state);
-//
-//     const draggable = new Draggable(`#${boxId}`, {
-//       cursor: "move",
-//       bounds: "#image-wrapper",
-//       type: "x,y"
-//     });
-//
-//     const $right        = document.createElement("div");
-//     let rightLastX      = 0;
-//     this.rightDraggable = new Draggable($right, {
-//       trigger: `#${boxId} .right, #${boxId} .topRight, #${boxId} .bottomRight`,
-//       onDrag: function () {
-//         const diff = this.x - rightLastX;
-//         gsap.set(`#${boxId}`, { width: `+=${diff * this.props.scale}` });
-//         rightLastX = this.x;
-//       },
-//       onPress: function () {
-//         rightLastX = this.x;
-//         draggable.disable();
-//       },
-//       onRelease: function () {
-//         draggable.enable();
-//       }
-//     });
-//
-//     const $top        = document.createElement("div");
-//     let topLastY      = 0;
-//     this.topDraggable = new Draggable($top, {
-//       trigger: `#${boxId} .top, #${boxId} .topRight, #${boxId} .topLeft`,
-//       onDrag: function () {
-//         const diff = this.y - topLastY;
-//         gsap.set(`#${boxId}`, { height: `-=${diff * state.scale}`, y: `+=${diff * state.scale}` });
-//         topLastY = this.y;
-//       },
-//       onPress: function () {
-//         topLastY = this.y;
-//         draggable.disable();
-//       },
-//       onRelease: function () {
-//         draggable.enable();
-//       }
-//     });
-//
-//     const $bottom        = document.createElement("div");
-//     let bottomLastY      = 0;
-//     this.bottomDraggable = new Draggable($bottom, {
-//       trigger: `#${boxId} .bottom, #${boxId} .bottomRight, #${boxId} .bottomLeft`,
-//       onDrag: function () {
-//         const diff = this.y - bottomLastY;
-//         gsap.set(`#${boxId}`, { height: `+=${diff * state.scale}` });
-//         bottomLastY = this.y;
-//       },
-//       onPress: function () {
-//         bottomLastY = this.y;
-//         draggable.disable();
-//       },
-//       onRelease: function () {
-//         draggable.enable();
-//       }
-//     });
-//
-//     const $left        = document.createElement("div");
-//     let leftLastX      = 0;
-//     this.leftDraggable = new Draggable($left, {
-//       trigger: `#${boxId} .left, #${boxId} .bottomLeft, #${boxId} .bottomLeft`,
-//       onDrag: function () {
-//         const diff = this.x - leftLastX;
-//         gsap.set(`#${boxId}`, { width: `-=${diff * state.scale}`, x: `+=${diff * state.scale}` });
-//         leftLastX = this.x;
-//       },
-//       onPress: function () {
-//         leftLastX = this.x;
-//         draggable.disable();
-//       },
-//       onRelease: function () {
-//         draggable.enable();
-//       }
-//     });
-//   }
-//
-//   componentWillUnmount() {
-//     this.draggable?.kill();
-//     this.rightDraggable?.kill();
-//     this.topDraggable?.kill();
-//     this.bottomDraggable?.kill();
-//     this.leftDraggable?.kill();
-//   }
-//
-//   render() {
-//     const { box, scale, deleteBox } = this.props;
-//
-//     return box.exist
-//       ? <StyledBox id={`box-${box.label}-${box.x}-${box.y}`} scale={scale} box={box} onContextMenuCapture={deleteBox}>
-//         <BoundingBoxLabel box={box} scale={scale}/>
-//         <div className="drag right"/>
-//         <div className="drag bottom"/>
-//         <div className="drag top"/>
-//         <div className="drag left"/>
-//         <div className="drag bottomRight"/>
-//         <div className="drag topLeft"/>
-//         <div className="drag topRight"/>
-//         <div className="drag bottomLeft"/>
-//       </StyledBox>
-//       : <div/>;
-//   }
-// }
-
 const BoundingBox: FC<BoundingBoxProps> = ({
   scale,
   box,
-  deleteBox = () => {
+  remove = () => {
+  },
+  relabel = () => {
   }
 }) => {
+  const [[context, x, y], setContext] = useState<[boolean, number, number]>([false, 0, 0]);
+
   useEffect(() => {
     const boxId = `box-${box.label}-${box.x}-${box.y}`;
 
@@ -371,22 +246,91 @@ const BoundingBox: FC<BoundingBoxProps> = ({
     };
   }, []);
 
+  const onContextMenuCapture = (event: any) => {
+    setContext([!context, event.clientX, event.clientY]);
+  };
+
   return (
     box.exist
-      ? <StyledBox id={`box-${box.label}-${box.x}-${box.y}`} scale={scale} box={box} onContextMenuCapture={deleteBox}>
-        <BoundingBoxLabel box={box} scale={scale}/>
-        <div className="drag right"/>
-        <div className="drag bottom"/>
-        <div className="drag top"/>
-        <div className="drag left"/>
-        <div className="drag bottomRight"/>
-        <div className="drag topLeft"/>
-        <div className="drag topRight"/>
-        <div className="drag bottomLeft"/>
-      </StyledBox>
-      : <div/>
+      ? <StyledBox
+          id={`box-${box.label}-${box.x}-${box.y}`}
+          scale={scale}
+          box={box}
+          onContextMenuCapture={onContextMenuCapture}
+        >
+          <BoundingBoxLabel box={box} scale={scale}/>
+          <div className="drag right"/>
+          <div className="drag bottom"/>
+          <div className="drag top"/>
+          <div className="drag left"/>
+          <div className="drag bottomRight"/>
+          <div className="drag topLeft"/>
+          <div className="drag topRight"/>
+          <div className="drag bottomLeft"/>
+          {context && <ContextMenu remove={remove} relabel={relabel} close={() => setContext([false, 0, 0])} x={x} y={y}/>}
+        </StyledBox>
+        : <div/>
   );
 };
+
+interface ContextMenuProps {
+  remove: () => void;
+  relabel: (newLabel: string) => void;
+  close: () => void;
+  x: number;
+  y: number;
+}
+
+const StyledContextMenu = styled.div<{ x: number, y: number }>`
+  position: fixed;
+  top: ${({ y }) => y}px;
+  left: ${({ x }) => x}px;
+  
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+`;
+
+const ContextMenu: FC<ContextMenuProps> = ({ remove, relabel, close, x, y }) => {
+  const [menu, setMenu] = useState<'main' | 'relabel'>('main');
+
+  return (
+    <StyledContextMenu y={y} x={x}>
+      {menu === 'main' ?
+        <div>
+          <button onClick={remove}>
+            remove
+          </button>
+          <button onClick={() => setMenu('relabel')}>
+            relabel
+          </button>
+        </div> :
+        <div>
+          {
+            labels.map(label => (
+              <button key={label} onClick={() => {
+                relabel(label);
+                close();
+                setMenu('main');
+              }}>
+                {label}
+              </button>
+            ))
+          }
+          <button onClick={() => setMenu('main')}>
+            back
+          </button>
+        </div>}
+    </StyledContextMenu>
+  );
+};
+
+const labels = [
+  'pylon',
+  'farm',
+  'gold_mine'
+];
 
 const initialBoxes = [
   {
@@ -394,7 +338,7 @@ const initialBoxes = [
     y: 265,
     width: 270,
     height: 200,
-    label: "blue_box",
+    label: "pylon",
     color: "#0000FF"
   },
   {
@@ -402,7 +346,7 @@ const initialBoxes = [
     y: 50,
     width: 100,
     height: 100,
-    label: "red_box",
+    label: "farm",
     color: "#FF0000"
   },
   {
@@ -410,7 +354,7 @@ const initialBoxes = [
     y: 60,
     height: 70,
     width: 70,
-    label: "overlapping_box",
+    label: "gold_mine",
     color: "#FFFF00"
   }
 ];
@@ -429,6 +373,14 @@ const App = () => {
     return () => {
       const newAnnotations  = [...annotations];
       newAnnotations[index] = { ...annotations[index], exist: false };
+      setAnnotation(newAnnotations);
+    };
+  };
+
+  const relabelFactory = (index: number) => {
+    return (newLabel: string) => {
+      const newAnnotations  = [...annotations];
+      newAnnotations[index] = { ...annotations[index], label: newLabel };
       setAnnotation(newAnnotations);
     };
   };
@@ -452,7 +404,13 @@ const App = () => {
               style={{ verticalAlign: "middle" }}
             />
             {annotations.map((annotation, index) => (
-              <BoundingBox key={index} box={annotation} scale={scale} deleteBox={deleteAnnotationFactory(index)}/>
+              <BoundingBox
+                key={index}
+                box={annotation}
+                scale={scale}
+                remove={deleteAnnotationFactory(index)}
+                relabel={relabelFactory(index)}
+              />
             ))}
           </div>
         </TransformComponent>
