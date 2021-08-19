@@ -277,11 +277,8 @@ const BoundingBox: FC<BoundingBoxProps> = ({
   deleteBox = () => {
   }
 }) => {
-  const [draggables, setDraggables] = useState<Draggable[]>([]);
-
   useEffect(() => {
     const boxId = `box-${box.label}-${box.x}-${box.y}`;
-    console.log('creating draggables');
 
     const draggable = new Draggable(`#${boxId}`, {
       cursor: "move",
@@ -294,7 +291,8 @@ const BoundingBox: FC<BoundingBoxProps> = ({
     const rightDraggable = new Draggable($right, {
       trigger: `#${boxId} .right, #${boxId} .topRight, #${boxId} .bottomRight`,
       onDrag: function () {
-        const diff = this.x - rightLastX;
+        const scale = Number(document.getElementById(boxId)?.getAttribute('scale'));
+        const diff  = this.x - rightLastX;
         gsap.set(`#${boxId}`, { width: `+=${diff * scale}` });
         rightLastX = this.x;
       },
@@ -312,7 +310,8 @@ const BoundingBox: FC<BoundingBoxProps> = ({
     const topDraggable = new Draggable($top, {
       trigger: `#${boxId} .top, #${boxId} .topRight, #${boxId} .topLeft`,
       onDrag: function () {
-        const diff = this.y - topLastY;
+        const scale = Number(document.getElementById(boxId)?.getAttribute('scale'));
+        const diff  = this.y - topLastY;
         gsap.set(`#${boxId}`, { height: `-=${diff * scale}`, y: `+=${diff * scale}` });
         topLastY = this.y;
       },
@@ -330,9 +329,9 @@ const BoundingBox: FC<BoundingBoxProps> = ({
     const bottomDraggable = new Draggable($bottom, {
       trigger: `#${boxId} .bottom, #${boxId} .bottomRight, #${boxId} .bottomLeft`,
       onDrag: function () {
-        const currentScale = scale;
-        const diff         = this.y - bottomLastY;
-        gsap.set(`#${boxId}`, { height: `+=${diff * currentScale}` });
+        const scale = Number(document.getElementById(boxId)?.getAttribute('scale'));
+        const diff  = this.y - bottomLastY;
+        gsap.set(`#${boxId}`, { height: `+=${diff * scale}` });
         bottomLastY = this.y;
       },
       onPress: function () {
@@ -345,12 +344,12 @@ const BoundingBox: FC<BoundingBoxProps> = ({
     });
 
     const $left         = document.createElement("div");
-    let leftLastX     = 0;
+    let leftLastX       = 0;
     const leftDraggable = new Draggable($left, {
-      trigger: `#${boxId} .left, #${boxId} .bottomLeft, #${boxId} .bottomLeft`,
+      trigger: `#${boxId} .left, #${boxId} .bottomLeft, #${boxId} .topLeft`,
       onDrag: function () {
-        const newScale = document.getElementById()
-        const diff = this.x - leftLastX;
+        const scale = Number(document.getElementById(boxId)?.getAttribute('scale'));
+        const diff  = this.x - leftLastX;
         gsap.set(`#${boxId}`, { width: `-=${diff * scale}`, x: `+=${diff * scale}` });
         leftLastX = this.x;
       },
@@ -363,8 +362,6 @@ const BoundingBox: FC<BoundingBoxProps> = ({
       }
     });
 
-    setDraggables([draggable, rightDraggable, leftDraggable, topDraggable, bottomDraggable]);
-
     return () => {
       draggable.kill();
       rightDraggable.kill();
@@ -373,27 +370,6 @@ const BoundingBox: FC<BoundingBoxProps> = ({
       leftDraggable.kill();
     };
   }, []);
-
-  // useEffect(() => {
-  //   if (draggables.length < 5) return;
-  //
-  //   console.log('in effect' + scale);
-  //   const boxId = `box-${box.label}-${box.x}-${box.y}`;
-  //
-  //   function dragLeft() {
-  //     console.log('inside' + scale);
-  //     // @ts-ignore
-  //     const diff = this.x - this.leftLastX;
-  //     // @ts-ignore
-  //     gsap.set(`#${boxId}`, { width: `-=${diff * scale}`, x: `+=${diff * scale}` });
-  //     // @ts-ignore
-  //     this.leftLastX = this.x;
-  //   }
-  //
-  //   draggables[2].removeEventListener('drag', dragLeft);
-  //   draggables[2].addEventListener('drag', dragLeft);
-  //
-  // }, [scale, draggables]);
 
   return (
     box.exist
