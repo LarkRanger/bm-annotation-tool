@@ -1,5 +1,6 @@
-import React, { FC, MouseEventHandler, useCallback, useEffect, useMemo, useState } from "react";
+import React, { FC, useEffect, useState } from "react";
 import "./App.css";
+import 'antd/dist/antd.css';
 import {
   TransformWrapper,
   TransformComponent,
@@ -8,17 +9,19 @@ import {
 import styled from "styled-components";
 import { gsap } from "gsap";
 import { Draggable } from "gsap/Draggable";
-import { on } from 'cluster';
+import { Menu, Dropdown, Button } from 'antd';
 
 gsap.registerPlugin(Draggable);
 
+type TLabel = 'pylon' | 'farm' | 'gold_mine';
+
 interface IBoundingBox {
+  id: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  color: string;
-  label: string;
+  label: TLabel;
 }
 
 interface BoundingBoxLabelProps {
@@ -29,8 +32,8 @@ interface BoundingBoxLabelProps {
 const StyledLabel = styled.div<BoundingBoxLabelProps>`
   position: absolute;
   z-index: 500;
-  top: 1rem;
   left: 0;
+  top: 1rem;
   background: rgba(0, 0, 0, 0.7);
   color: white;
   padding: 0.2rem 0.4rem;
@@ -52,22 +55,22 @@ interface BoundingBoxProps {
   box: IAnnotation;
   scale: number;
   remove?: () => void;
-  relabel?: (newLabel: string) => void;
+  relabel?: (newLabel: TLabel) => void;
 }
 
 const StyledBox = styled.div<BoundingBoxProps>`
   position: absolute;
   z-index: 100;
-  left: ${({ box }) => box.x}px;
-  top: ${({ box }) => box.y}px;
-  width: ${({ box }) => box.width}px;
-  height: ${({ box }) => box.height}px;
-  background: ${({ box }) => box.color}30;
-  border: ${({ scale }) => 0.05 * scale}rem solid ${({ box }) => box.color};
+    // left: ${({ box }) => box.x}px;
+    // top: ${({ box }) => box.y}px;
+    // width: ${({ box }) => box.width}px;
+    // height: ${({ box }) => box.height}px;
+  background: ${({ box }) => colors[box.label]}30;
+  border: ${({ scale }) => 0.05 * scale}rem solid ${({ box }) => colors[box.label]};
   transition: background 0.15s;
 
   &:hover {
-    background: ${({ box }) => box.color}50;
+    background: ${({ box }) => colors[box.label]}50;
 
     .drag {
       visibility: visible;
@@ -76,10 +79,10 @@ const StyledBox = styled.div<BoundingBoxProps>`
 
   .drag {
     position: absolute;
-    width: 5px;
-    height: 5px;
+    width: 8px;
+    height: 8px;
     background: white;
-    border: 2px solid darkgray;
+    border: 1px solid darkgray;
     border-radius: 1px;
     z-index: 200;
     visibility: hidden;
@@ -150,26 +153,64 @@ const BoundingBox: FC<BoundingBoxProps> = ({
   relabel = () => {
   }
 }) => {
-  const [[context, x, y], setContext] = useState<[boolean, number, number]>([false, 0, 0]);
+  const [isContextVisible, setIsContextVisible] = useState<boolean>(false);
+
+  const onClickLabel = (label: TLabel) => {
+    relabel(label);
+    setIsContextVisible(false);
+  };
+
+  const onClickDelete = () => {
+    remove();
+    setIsContextVisible(false);
+  };
+
+  const handleVisibleChange = (flag: boolean) => {
+    setIsContextVisible(flag);
+  };
 
   useEffect(() => {
-    const boxId = `box-${box.label}-${box.x}-${box.y}`;
+    gsap.set(`#${box.id}`, { width: box.width, height: box.height, left: box.x, top: box.y });
 
-    const draggable = new Draggable(`#${boxId}`, {
+    const draggable = new Draggable(`#${box.id}`, {
       cursor: "move",
       bounds: "#image-wrapper",
-      type: "x,y"
+      type: "x,y",
+      allowContextMenu: true
     });
 
-    const $right         = document.createElement("div");
-    let rightLastX       = 0;
-    const rightDraggable = new Draggable($right, {
-      trigger: `#${boxId} .right, #${boxId} .topRight, #${boxId} .bottomRight`,
-      onDrag: function () {
-        const scale = Number(document.getElementById(boxId)?.getAttribute('scale'));
-        const diff  = this.x - rightLastX;
-        gsap.set(`#${boxId}`, { width: `+=${diff * scale}` });
+    const $right  = document.createElement("div");
+    const $top    = document.createElement("div");
+    const $bottom = document.createElement("div");
+    const $left   = document.createElement("div");
+
+    let rightLastX  = 0;
+    let topLastY    = 0;
+    let bottomLastY = 0;
+    let leftLastX   = 0;
+
+    const rightDraggable  = new Draggable($right, {
+      trigger: `#${box.id} .right, #${box.id} .topRight, #${box.id} .bottomRight`,
+      onDrag: function (event: PointerEvent) {
+        const div          = document.getElementById(box.id) as HTMLElement;
+        const scale        = Number(div.getAttribute('scale'));
+        const mouse        = event.clientX;
+        const initialLeft  = div.getBoundingClientRect().left;
+        const initialWidth = div.getBoundingClientRect().width;
+        const diff = (rightLastX - this.x) * scale;
         rightLastX = this.x;
+
+        if (mouse <= initialLeft) {
+          gsap.set(`#${box.id}`, { x: `-=${initialWidth}` });
+          rightDraggable.endDrag(event);
+          leftDraggable.startDrag(event);
+        } else if (initialWidth + diff < 2 / scale) {
+          gsap.set(`#${box.id}`, { width: `-=${diff - 2 * scale}` });
+          rightDraggable.endDrag(event);
+          leftDraggable.startDrag(event);
+        } else {
+          gsap.set(`#${box.id}`, { width: `-=${diff}` });
+        }
       },
       onPress: function () {
         rightLastX = this.x;
@@ -179,16 +220,28 @@ const BoundingBox: FC<BoundingBoxProps> = ({
         draggable.enable();
       }
     });
+    const topDraggable    = new Draggable($top, {
+      trigger: `#${box.id} .top, #${box.id} .topRight, #${box.id} .topLeft`,
+      onDrag: function (event) {
+        const div   = document.getElementById(box.id) as HTMLElement;
+        const scale = Number(div.getAttribute('scale'));
+        const mouse        = event.clientY;
+        const initialBottom = div.getBoundingClientRect().bottom;
+        const initialHeight = div.getBoundingClientRect().height;
+        const diff = (this.y - topLastY) * scale;
 
-    const $top         = document.createElement("div");
-    let topLastY       = 0;
-    const topDraggable = new Draggable($top, {
-      trigger: `#${boxId} .top, #${boxId} .topRight, #${boxId} .topLeft`,
-      onDrag: function () {
-        const scale = Number(document.getElementById(boxId)?.getAttribute('scale'));
-        const diff  = this.y - topLastY;
-        gsap.set(`#${boxId}`, { height: `-=${diff * scale}`, y: `+=${diff * scale}` });
         topLastY = this.y;
+        if (mouse >= initialBottom) {
+          gsap.set(`#${box.id}`, { height: `=${mouse - initialBottom}`, y: `+=${initialHeight}` });
+          topDraggable.endDrag(event);
+          bottomDraggable.startDrag(event);
+        } else if (initialHeight - diff <= 2 / scale) {
+          gsap.set(`#${box.id}`, { height: `-=${diff - 2 * scale}`, y: `+=${diff - 2 * scale}` });
+          topDraggable.endDrag(event);
+          bottomDraggable.startDrag(event);
+        } else {
+          gsap.set(`#${box.id}`, { height: `-=${diff}`, y: `+=${diff}` });
+        }
       },
       onPress: function () {
         topLastY = this.y;
@@ -198,16 +251,28 @@ const BoundingBox: FC<BoundingBoxProps> = ({
         draggable.enable();
       }
     });
-
-    const $bottom         = document.createElement("div");
-    let bottomLastY       = 0;
     const bottomDraggable = new Draggable($bottom, {
-      trigger: `#${boxId} .bottom, #${boxId} .bottomRight, #${boxId} .bottomLeft`,
-      onDrag: function () {
-        const scale = Number(document.getElementById(boxId)?.getAttribute('scale'));
-        const diff  = this.y - bottomLastY;
-        gsap.set(`#${boxId}`, { height: `+=${diff * scale}` });
+      trigger: `#${box.id} .bottom, #${box.id} .bottomRight, #${box.id} .bottomLeft`,
+      onDrag: function (event) {
+        const div          = document.getElementById(box.id) as HTMLElement;
+        const scale        = Number(div.getAttribute('scale'));
+        const mouse        = event.clientY;
+        const initialTop   = div.getBoundingClientRect().top;
+        const initialHeight = div.getBoundingClientRect().height;
+        const diff = (bottomLastY - this.y) * scale;
+
         bottomLastY = this.y;
+        if (mouse <= initialTop) {
+          gsap.set(`#${box.id}`, { y: `-=${initialHeight}` });
+          bottomDraggable.endDrag(event);
+          topDraggable.startDrag(event);
+        } else if (initialHeight + diff < 2 / scale) {
+          gsap.set(`#${box.id}`, { height: `-=${diff - 2 * scale}` });
+          bottomDraggable.endDrag(event);
+          topDraggable.startDrag(event);
+        } else {
+          gsap.set(`#${box.id}`, { height: `-=${diff}` });
+        }
       },
       onPress: function () {
         bottomLastY = this.y;
@@ -217,16 +282,29 @@ const BoundingBox: FC<BoundingBoxProps> = ({
         draggable.enable();
       }
     });
+    const leftDraggable   = new Draggable($left, {
+      trigger: `#${box.id} .left, #${box.id} .bottomLeft, #${box.id} .topLeft`,
+      onDrag: function (event: PointerEvent) {
+        const div   = document.getElementById(box.id) as HTMLElement;
+        const scale = Number(div.getAttribute('scale'));
+        const mouse        = event.clientX;
+        const initialRight = div.getBoundingClientRect().right;
+        const initialWidth = div.getBoundingClientRect().width;
+        const diff = (this.x - leftLastX) * scale;
 
-    const $left         = document.createElement("div");
-    let leftLastX       = 0;
-    const leftDraggable = new Draggable($left, {
-      trigger: `#${boxId} .left, #${boxId} .bottomLeft, #${boxId} .topLeft`,
-      onDrag: function () {
-        const scale = Number(document.getElementById(boxId)?.getAttribute('scale'));
-        const diff  = this.x - leftLastX;
-        gsap.set(`#${boxId}`, { width: `-=${diff * scale}`, x: `+=${diff * scale}` });
         leftLastX = this.x;
+        console.log({initialWidth, leftLastX, diff});
+        if (mouse >= initialRight) {
+          gsap.set(`#${box.id}`, { width: `=${mouse - initialRight}`, x: `+=${initialWidth}` });
+          leftDraggable.endDrag(event);
+          rightDraggable.startDrag(event);
+        } else if (initialWidth - diff <= 2 / scale) {
+          gsap.set(`#${box.id}`, { width: `-=${diff - 2 * scale}`, x: `+=${diff - 2 * scale}` });
+          leftDraggable.endDrag(event);
+          rightDraggable.startDrag(event);
+        } else {
+          gsap.set(`#${box.id}`, { width: `-=${diff}`, x: `+=${diff}` });
+        }
       },
       onPress: function () {
         this.leftLastX = this.x;
@@ -246,17 +324,26 @@ const BoundingBox: FC<BoundingBoxProps> = ({
     };
   }, []);
 
-  const onContextMenuCapture = (event: any) => {
-    setContext([!context, event.clientX, event.clientY]);
-  };
-
   return (
-    box.exist
-      ? <StyledBox
-          id={`box-${box.label}-${box.x}-${box.y}`}
+    box.exist ?
+      <Dropdown
+        visible={isContextVisible}
+        onVisibleChange={handleVisibleChange}
+        trigger={['contextMenu']}
+        overlay={
+          <Menu>
+            <Menu.SubMenu title="Relabel" key="relabel-menu">
+              {labels.map(label => <Menu.Item key={label} onClick={() => onClickLabel(label)}>{label}</Menu.Item>)}
+            </Menu.SubMenu>
+            <Menu.Divider/>
+            <Menu.Item key="delete" onClick={onClickDelete} danger>Delete</Menu.Item>
+          </Menu>
+        }
+      >
+        <StyledBox
+          id={box.id}
           scale={scale}
           box={box}
-          onContextMenuCapture={onContextMenuCapture}
         >
           <BoundingBoxLabel box={box} scale={scale}/>
           <div className="drag right"/>
@@ -267,99 +354,114 @@ const BoundingBox: FC<BoundingBoxProps> = ({
           <div className="drag topLeft"/>
           <div className="drag topRight"/>
           <div className="drag bottomLeft"/>
-          {context && <ContextMenu remove={remove} relabel={relabel} close={() => setContext([false, 0, 0])} x={x} y={y}/>}
         </StyledBox>
-        : <div/>
+      </Dropdown> :
+      <div/>
   );
 };
 
-interface ContextMenuProps {
+interface AnnotationItemProps {
+  annotation: IAnnotation;
+  index: number;
   remove: () => void;
-  relabel: (newLabel: string) => void;
-  close: () => void;
-  x: number;
-  y: number;
+  relabel: (newLabel: TLabel) => void;
 }
 
-const StyledContextMenu = styled.div<{ x: number, y: number }>`
-  position: fixed;
-  top: ${({ y }) => y}px;
-  left: ${({ x }) => x}px;
-  
-  div {
+const StyledAnnotationItem = styled.div<{ annotation: IAnnotation }>`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px;
+  box-shadow: 5px 5px 15px black;
+  width: 40vw;
+  height: 40px;
+  margin: 15px;
+  padding: 15px;
+  background-color: ${({ annotation }) => colors[annotation.label]}80;
+
+  .buttons {
     display: flex;
-    flex-direction: column;
+    gap: 1rem;
   }
 `;
 
-const ContextMenu: FC<ContextMenuProps> = ({ remove, relabel, close, x, y }) => {
-  const [menu, setMenu] = useState<'main' | 'relabel'>('main');
-
-  return (
-    <StyledContextMenu y={y} x={x}>
-      {menu === 'main' ?
-        <div>
-          <button onClick={remove}>
-            remove
-          </button>
-          <button onClick={() => setMenu('relabel')}>
-            relabel
-          </button>
-        </div> :
-        <div>
-          {
-            labels.map(label => (
-              <button key={label} onClick={() => {
-                relabel(label);
-                close();
-                setMenu('main');
-              }}>
-                {label}
-              </button>
-            ))
-          }
-          <button onClick={() => setMenu('main')}>
-            back
-          </button>
-        </div>}
-    </StyledContextMenu>
-  );
-};
-
-const labels = [
+const labels: TLabel[] = [
   'pylon',
   'farm',
   'gold_mine'
 ];
 
-const initialBoxes = [
+const AnnotationItem: FC<AnnotationItemProps> = ({ annotation, index, remove, relabel }) => {
+  const [relabelIsVisible, setRelabelIsVisible] = useState<boolean>(false);
+
+  const onRelable = (newLabel: TLabel) => {
+    relabel(newLabel);
+    setRelabelIsVisible(false);
+  };
+
+  return (
+    annotation.exist ?
+      <StyledAnnotationItem annotation={annotation}>
+        <span className="text">{index} {annotation.label}</span>
+        <span className="buttons">
+        <Button danger onClick={remove}>Delete</Button>
+        <Dropdown
+          visible={relabelIsVisible}
+          onVisibleChange={(flag) => setRelabelIsVisible(flag)}
+          overlay={
+            <Menu>
+              {labels.map((label, index) => (
+                <Menu.Item
+                  key={index}
+                  onClick={() => onRelable(label)}
+                >
+                  {label}
+                </Menu.Item>
+              ))}
+            </Menu>
+          }>
+          <Button onClick={() => setRelabelIsVisible(true)}>Relabel</Button>
+        </Dropdown>
+      </span>
+      </StyledAnnotationItem> :
+      <div/>
+  );
+};
+
+const colors = {
+  pylon: "#0000FF",
+  farm: "#FF0000",
+  gold_mine: "#FFFF00"
+};
+
+const initialBoxes: IBoundingBox[] = [
   {
+    id: 'Acd77111d-1fc7-4291-b05d-4c1c69c04637',
     x: 100,
     y: 265,
     width: 270,
     height: 200,
-    label: "pylon",
-    color: "#0000FF"
+    label: "pylon"
   },
   {
+    id: 'A94d699f7-779e-49e7-90cc-99c8dc28cffc',
     x: 50,
     y: 50,
     width: 100,
     height: 100,
-    label: "farm",
-    color: "#FF0000"
+    label: "farm"
   },
   {
+    id: 'A60bee2ac-1936-4af7-8cb6-f5ab15ecb40e',
     x: 60,
     y: 60,
     height: 70,
     width: 70,
-    label: "gold_mine",
-    color: "#FFFF00"
+    label: "gold_mine"
   }
 ];
 
-type IAnnotation = IBoundingBox & { exist: boolean };
+type IAnnotation = IBoundingBox & { exist: boolean, id: string };
 
 const App = () => {
   const [scale, setScale]            = useState<number>(1);
@@ -378,7 +480,7 @@ const App = () => {
   };
 
   const relabelFactory = (index: number) => {
-    return (newLabel: string) => {
+    return (newLabel: TLabel) => {
       const newAnnotations  = [...annotations];
       newAnnotations[index] = { ...annotations[index], label: newLabel };
       setAnnotation(newAnnotations);
@@ -387,14 +489,14 @@ const App = () => {
 
   useEffect(() => {
     const newAnnotations = initialBoxes.map(box => {
-      const newAnnotations = { ...box, exist: true };
-      return newAnnotations;
+      const newAnnotation = { ...box, exist: true };
+      return newAnnotation;
     });
     setAnnotation(newAnnotations);
   }, []);
 
   return (
-    <div>
+    <StyledApp>
       <TransformWrapper onZoomStop={onZoomHandler} wheel={{ step: 0.05 }}>
         <TransformComponent>
           <div id="image-wrapper">
@@ -415,8 +517,26 @@ const App = () => {
           </div>
         </TransformComponent>
       </TransformWrapper>
-    </div>
+
+      <div className="annotation-list">
+        {annotations.map((annotation, index) =>
+          (
+            <AnnotationItem
+              key={index}
+              index={index}
+              annotation={annotation}
+              remove={deleteAnnotationFactory(index)}
+              relabel={relabelFactory(index)}
+            />
+          )
+        )}
+      </div>
+    </StyledApp>
   );
 };
+
+const StyledApp = styled.div`
+  display: flex;
+`;
 
 export default App;
