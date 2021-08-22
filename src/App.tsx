@@ -406,6 +406,7 @@ const AnnotationItem: FC<AnnotationItemProps> = ({ annotation, index, remove, re
         <span className="buttons">
         <Button danger onClick={remove}>Delete</Button>
         <Dropdown
+          trigger={["click"]}
           visible={relabelIsVisible}
           onVisibleChange={(flag) => setRelabelIsVisible(flag)}
           overlay={
