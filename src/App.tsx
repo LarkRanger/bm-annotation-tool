@@ -311,6 +311,8 @@ const StyledAnnotation = styled.div<{ annotation: AnnotationSubStore, scale: num
   }
 
   &.selected {
+    background: ${({ annotation }) => colors[annotation.label]}50;
+    
     .drag {
       visibility: visible;
     }
