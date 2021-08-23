@@ -10,10 +10,11 @@ import styled from "styled-components";
 import { gsap } from "gsap";
 import { Draggable } from "gsap/Draggable";
 import { Menu, Dropdown, Button } from 'antd';
+import { v4 as uuid } from 'uuid';
 
 gsap.registerPlugin(Draggable);
 
-type TLabel = 'pylon' | 'farm' | 'gold_mine';
+type TLabel = 'unlabeled' | 'pylon' | 'farm' | 'gold_mine';
 
 interface IBoundingBox {
   id: string;
@@ -172,6 +173,9 @@ const BoundingBox: FC<BoundingBoxProps> = ({
   useEffect(() => {
     gsap.set(`#${box.id}`, { width: box.width, height: box.height, left: box.x, top: box.y });
 
+    const { width: wWidth, height: wHeight, x: wLeft, y: wTop } = (document.getElementById(
+      "image-wrapper") as HTMLElement).getBoundingClientRect();
+
     const draggable = new Draggable(`#${box.id}`, {
       cursor: "move",
       bounds: "#image-wrapper",
@@ -184,36 +188,25 @@ const BoundingBox: FC<BoundingBoxProps> = ({
     const $bottom = document.createElement("div");
     const $left   = document.createElement("div");
 
-    let rightLastX  = 0;
-    let topLastY    = 0;
-    let bottomLastY = 0;
-    let leftLastX   = 0;
-
     const rightDraggable  = new Draggable($right, {
       trigger: `#${box.id} .right, #${box.id} .topRight, #${box.id} .bottomRight`,
       onDrag: function (event: PointerEvent) {
-        const div          = document.getElementById(box.id) as HTMLElement;
-        const scale        = Number(div.getAttribute('scale'));
-        const mouse        = event.clientX;
-        const initialLeft  = div.getBoundingClientRect().left;
-        const initialWidth = div.getBoundingClientRect().width;
-        const diff = (rightLastX - this.x) * scale;
-        rightLastX = this.x;
+        const div             = document.getElementById(box.id) as HTMLElement;
+        const scale           = Number(div.getAttribute('scale'));
+        const mouse           = Math.min(event.clientX, wWidth + wLeft);
+        const { left, right } = div.getBoundingClientRect();
 
-        if (mouse <= initialLeft) {
-          gsap.set(`#${box.id}`, { x: `-=${initialWidth}` });
-          rightDraggable.endDrag(event);
-          leftDraggable.startDrag(event);
-        } else if (initialWidth + diff < 2 / scale) {
-          gsap.set(`#${box.id}`, { width: `-=${diff - 2 * scale}` });
+        if (mouse < left) {
+          const diff = (mouse - left) * scale;
+          gsap.set(`#${box.id}`, { left: `=${mouse}`, width: `=${diff}` });
           rightDraggable.endDrag(event);
           leftDraggable.startDrag(event);
         } else {
+          const diff = (right - mouse) * scale;
           gsap.set(`#${box.id}`, { width: `-=${diff}` });
         }
       },
       onPress: function () {
-        rightLastX = this.x;
         draggable.disable();
       },
       onRelease: function () {
@@ -223,28 +216,22 @@ const BoundingBox: FC<BoundingBoxProps> = ({
     const topDraggable    = new Draggable($top, {
       trigger: `#${box.id} .top, #${box.id} .topRight, #${box.id} .topLeft`,
       onDrag: function (event) {
-        const div   = document.getElementById(box.id) as HTMLElement;
-        const scale = Number(div.getAttribute('scale'));
-        const mouse        = event.clientY;
-        const initialBottom = div.getBoundingClientRect().bottom;
-        const initialHeight = div.getBoundingClientRect().height;
-        const diff = (this.y - topLastY) * scale;
+        const div             = document.getElementById(box.id) as HTMLElement;
+        const scale           = Number(div.getAttribute('scale'));
+        const mouse           = Math.max(event.clientY, wTop);
+        const { top, bottom } = div.getBoundingClientRect();
 
-        topLastY = this.y;
-        if (mouse >= initialBottom) {
-          gsap.set(`#${box.id}`, { height: `=${mouse - initialBottom}`, y: `+=${initialHeight}` });
-          topDraggable.endDrag(event);
-          bottomDraggable.startDrag(event);
-        } else if (initialHeight - diff <= 2 / scale) {
-          gsap.set(`#${box.id}`, { height: `-=${diff - 2 * scale}`, y: `+=${diff - 2 * scale}` });
+        if (mouse > bottom) {
+          const diff = (mouse - bottom) * scale;
+          gsap.set(`#${box.id}`, { top: `=${bottom}`, height: `=${diff}` });
           topDraggable.endDrag(event);
           bottomDraggable.startDrag(event);
         } else {
-          gsap.set(`#${box.id}`, { height: `-=${diff}`, y: `+=${diff}` });
+          const diff = (mouse - top) * scale;
+          gsap.set(`#${box.id}`, { height: `-=${diff}`, top: `+=${diff}` });
         }
       },
       onPress: function () {
-        topLastY = this.y;
         draggable.disable();
       },
       onRelease: function () {
@@ -254,28 +241,22 @@ const BoundingBox: FC<BoundingBoxProps> = ({
     const bottomDraggable = new Draggable($bottom, {
       trigger: `#${box.id} .bottom, #${box.id} .bottomRight, #${box.id} .bottomLeft`,
       onDrag: function (event) {
-        const div          = document.getElementById(box.id) as HTMLElement;
-        const scale        = Number(div.getAttribute('scale'));
-        const mouse        = event.clientY;
-        const initialTop   = div.getBoundingClientRect().top;
-        const initialHeight = div.getBoundingClientRect().height;
-        const diff = (bottomLastY - this.y) * scale;
+        const div             = document.getElementById(box.id) as HTMLElement;
+        const scale           = Number(div.getAttribute('scale'));
+        const mouse           = Math.min(event.clientY, wTop + wHeight);
+        const { top, bottom } = div.getBoundingClientRect();
 
-        bottomLastY = this.y;
-        if (mouse <= initialTop) {
-          gsap.set(`#${box.id}`, { y: `-=${initialHeight}` });
-          bottomDraggable.endDrag(event);
-          topDraggable.startDrag(event);
-        } else if (initialHeight + diff < 2 / scale) {
-          gsap.set(`#${box.id}`, { height: `-=${diff - 2 * scale}` });
+        if (mouse < top) {
+          const diff = (mouse - top) * scale;
+          gsap.set(`#${box.id}`, { top: `=${mouse}`, height: `=${diff}` });
           bottomDraggable.endDrag(event);
           topDraggable.startDrag(event);
         } else {
+          const diff = (bottom - mouse) * scale;
           gsap.set(`#${box.id}`, { height: `-=${diff}` });
         }
       },
       onPress: function () {
-        bottomLastY = this.y;
         draggable.disable();
       },
       onRelease: function () {
@@ -285,35 +266,33 @@ const BoundingBox: FC<BoundingBoxProps> = ({
     const leftDraggable   = new Draggable($left, {
       trigger: `#${box.id} .left, #${box.id} .bottomLeft, #${box.id} .topLeft`,
       onDrag: function (event: PointerEvent) {
-        const div   = document.getElementById(box.id) as HTMLElement;
-        const scale = Number(div.getAttribute('scale'));
-        const mouse        = event.clientX;
-        const initialRight = div.getBoundingClientRect().right;
-        const initialWidth = div.getBoundingClientRect().width;
-        const diff = (this.x - leftLastX) * scale;
+        const div             = document.getElementById(box.id) as HTMLElement;
+        const scale           = Number(div.getAttribute('scale'));
+        const mouse           = Math.max(event.clientX, wLeft);
+        const { left, right } = div.getBoundingClientRect();
 
-        leftLastX = this.x;
-        console.log({initialWidth, leftLastX, diff});
-        if (mouse >= initialRight) {
-          gsap.set(`#${box.id}`, { width: `=${mouse - initialRight}`, x: `+=${initialWidth}` });
-          leftDraggable.endDrag(event);
-          rightDraggable.startDrag(event);
-        } else if (initialWidth - diff <= 2 / scale) {
-          gsap.set(`#${box.id}`, { width: `-=${diff - 2 * scale}`, x: `+=${diff - 2 * scale}` });
+        if (mouse > right) {
+          const diff = (mouse - right) * scale;
+          gsap.set(`#${box.id}`, { left: `=${right}`, width: `=${diff}` });
           leftDraggable.endDrag(event);
           rightDraggable.startDrag(event);
         } else {
-          gsap.set(`#${box.id}`, { width: `-=${diff}`, x: `+=${diff}` });
+          const diff = (mouse - left) * scale;
+          gsap.set(`#${box.id}`, { width: `-=${diff}`, left: `+=${diff}` });
         }
       },
       onPress: function () {
-        this.leftLastX = this.x;
         draggable.disable();
       },
       onRelease: function () {
         draggable.enable();
       }
     });
+
+    if (box.creationEvent) {
+      rightDraggable.startDrag(box.creationEvent);
+      bottomDraggable.startDrag(box.creationEvent);
+    }
 
     return () => {
       draggable.kill();
@@ -430,6 +409,7 @@ const AnnotationItem: FC<AnnotationItemProps> = ({ annotation, index, remove, re
 };
 
 const colors = {
+  unlabeled: "#888888",
   pylon: "#0000FF",
   farm: "#FF0000",
   gold_mine: "#FFFF00"
@@ -462,11 +442,12 @@ const initialBoxes: IBoundingBox[] = [
   }
 ];
 
-type IAnnotation = IBoundingBox & { exist: boolean, id: string };
+type IAnnotation = IBoundingBox & { exist: boolean, id: string, creationEvent?: MouseEvent };
 
 const App = () => {
-  const [scale, setScale]            = useState<number>(1);
-  const [annotations, setAnnotation] = useState<IAnnotation[]>([]);
+  const [scale, setScale]             = useState<number>(1);
+  const [annotations, setAnnotations] = useState<IAnnotation[]>([]);
+  const [panDisabled, setPanDisabled] = useState<boolean>(false);
 
   const onZoomHandler = (r: ReactZoomPanPinchRef) => {
     setScale(1 / r.state.scale);
@@ -476,7 +457,7 @@ const App = () => {
     return () => {
       const newAnnotations  = [...annotations];
       newAnnotations[index] = { ...annotations[index], exist: false };
-      setAnnotation(newAnnotations);
+      setAnnotations(newAnnotations);
     };
   };
 
@@ -484,8 +465,38 @@ const App = () => {
     return (newLabel: TLabel) => {
       const newAnnotations  = [...annotations];
       newAnnotations[index] = { ...annotations[index], label: newLabel };
-      setAnnotation(newAnnotations);
+      setAnnotations(newAnnotations);
     };
+  };
+
+  const onAddNew = () => {
+    const wrapper = document.getElementById('image-wrapper') as HTMLElement;
+
+    const addNewAnnotation = (event: MouseEvent) => {
+      const newAnnotation: IAnnotation = {
+        y: event.clientY,
+        x: event.clientX,
+        height: 0,
+        width: 0,
+        label: 'unlabeled',
+        id: 'A' + uuid(),
+        exist: true,
+        creationEvent: event
+      };
+      const newAnnotations             = [...annotations, newAnnotation];
+      setAnnotations(newAnnotations);
+      wrapper.removeEventListener('mousedown', addNewAnnotation);
+
+      const reenablePan = () => {
+        setPanDisabled(false);
+        wrapper.removeEventListener('mouseup', reenablePan);
+      }
+
+      wrapper.addEventListener('mouseup', reenablePan);
+    };
+
+    wrapper.addEventListener('mousedown', addNewAnnotation);
+    setPanDisabled(true);
   };
 
   useEffect(() => {
@@ -493,12 +504,12 @@ const App = () => {
       const newAnnotation = { ...box, exist: true };
       return newAnnotation;
     });
-    setAnnotation(newAnnotations);
+    setAnnotations(newAnnotations);
   }, []);
 
   return (
     <StyledApp>
-      <TransformWrapper onZoomStop={onZoomHandler} wheel={{ step: 0.05 }}>
+      <TransformWrapper disabled={panDisabled} onZoomStop={onZoomHandler} wheel={{ step: 0.05 }}>
         <TransformComponent>
           <div id="image-wrapper">
             <img
@@ -531,6 +542,8 @@ const App = () => {
             />
           )
         )}
+
+        <Button onClick={onAddNew}>New Annotation</Button>
       </div>
     </StyledApp>
   );
@@ -538,6 +551,12 @@ const App = () => {
 
 const StyledApp = styled.div`
   display: flex;
+
+  .annotation-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
 `;
 
 export default App;
