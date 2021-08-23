@@ -1,5 +1,4 @@
 import React, { FC, useEffect, useState } from "react";
-import "./App.css";
 import 'antd/dist/antd.css';
 import {
   TransformWrapper,
@@ -33,6 +32,59 @@ interface IBoundingBox {
   };
 }
 
+// globals
+const labels: TLabel[] = [
+  'pylon',
+  'farm',
+  'gold_mine'
+];
+
+const colors = {
+  unlabeled: "#888888",
+  pylon: "#0000FF",
+  farm: "#FF0000",
+  gold_mine: "#9d9d00"
+};
+
+const initialBoxes: IBoundingBox[] = [
+  {
+    id: 'cd77111d-1fc7-4291-b05d-4c1c69c04637',
+    type: 'defect_detection',
+    confidence: .7,
+    label: {
+      topLeftX: 100,
+      topLeftY: 265,
+      width: 270,
+      height: 200,
+      value: "pylon"
+    }
+  },
+  {
+    id: '94d699f7-779e-49e7-90cc-99c8dc28cffc',
+    type: 'defect_detection',
+    confidence: .8,
+    label: {
+      topLeftX: 50,
+      topLeftY: 50,
+      width: 100,
+      height: 100,
+      value: "farm"
+    }
+  },
+  {
+    id: '60bee2ac-1936-4af7-8cb6-f5ab15ecb40e',
+    type: 'defect_detection',
+    confidence: .9,
+    label: {
+      topLeftX: 60,
+      topLeftY: 60,
+      height: 70,
+      width: 70,
+      value: 'gold_mine'
+    }
+  }
+];
+
 // stores
 class AnnotationSubStore {
   private annotationTool: AnnotationToolStore;
@@ -46,6 +98,7 @@ class AnnotationSubStore {
   private _selected: boolean;
   exists: boolean;
   creationEvent?: MouseEvent;
+  private _visible: boolean;
 
   constructor(annotationTool: AnnotationToolStore, box: IBoundingBox, creationEvent?: MouseEvent) {
     makeAutoObservable(this);
@@ -61,6 +114,7 @@ class AnnotationSubStore {
     this._selected     = false;
     this.exists        = true;
     this.creationEvent = creationEvent;
+    this._visible      = true;
 
     reaction(() => this.annotationTool.selectedId,
       selectedId => this._selected = selectedId === this.id);
@@ -82,9 +136,15 @@ class AnnotationSubStore {
     return this._selected;
   };
 
-  select = () => {
-    this.annotationTool.selectAnnotation(this.id);
-  };
+  get isVisible(): boolean {
+    return this._visible;
+  }
+
+  select = () => this.annotationTool.selectAnnotation(this.id);
+
+  show = () => this._visible = true;
+
+  hide = () => this._visible = false;
 
   remove = () => this.exists = false;
 }
@@ -195,60 +255,19 @@ class AnnotationToolStore {
   };
 }
 
-// globals
-const labels: TLabel[] = [
-  'pylon',
-  'farm',
-  'gold_mine'
-];
+class RootStore {
+  annotationTool: AnnotationToolStore;
 
-const colors = {
-  unlabeled: "#888888",
-  pylon: "#0000FF",
-  farm: "#FF0000",
-  gold_mine: "#9d9d00"
-};
+  constructor() {
+    makeAutoObservable(this);
 
-const initialBoxes: IBoundingBox[] = [
-  {
-    id: 'cd77111d-1fc7-4291-b05d-4c1c69c04637',
-    type: 'defect_detection',
-    confidence: .7,
-    label: {
-      topLeftX: 100,
-      topLeftY: 265,
-      width: 270,
-      height: 200,
-      value: "pylon"
-    }
-  },
-  {
-    id: '94d699f7-779e-49e7-90cc-99c8dc28cffc',
-    type: 'defect_detection',
-    confidence: .8,
-    label: {
-      topLeftX: 50,
-      topLeftY: 50,
-      width: 100,
-      height: 100,
-      value: "farm"
-    }
-  },
-  {
-    id: '60bee2ac-1936-4af7-8cb6-f5ab15ecb40e',
-    type: 'defect_detection',
-    confidence: .9,
-    label: {
-      topLeftX: 60,
-      topLeftY: 60,
-      height: 70,
-      width: 70,
-      value: 'gold_mine'
-    }
+    this.annotationTool = new AnnotationToolStore(initialBoxes);
   }
-];
+}
 
-const annotationTool = new AnnotationToolStore(initialBoxes);
+const rootStore = new RootStore();
+
+const useStores = (): RootStore => rootStore;
 
 // annotation
 interface AnnotationProps {
@@ -259,7 +278,7 @@ const StyledAnnotation = styled.div<{ annotation: AnnotationSubStore, scale: num
   position: absolute;
   z-index: 100;
   background: ${({ annotation }) => colors[annotation.label]}30;
-  border: ${({ annotation }) => 0.05 * annotation.scale}rem solid ${({ annotation }) => colors[annotation.label]};
+  border: 1px solid ${({ annotation }) => colors[annotation.label]};
   transition: background 0.15s;
 
   &:hover {
@@ -273,9 +292,9 @@ const StyledAnnotation = styled.div<{ annotation: AnnotationSubStore, scale: num
     top: 1rem;
     background: rgba(0, 0, 0, 0.7);
     color: white;
-    padding: 0.2rem 0.4rem;
+    padding: 0 0.2rem;
     border-radius: 0 0.2rem 0.2rem 0;
-    transform: scale(${({ annotation }) => annotation.scale});
+    transform: scale(${({ annotation }) => 1 / annotation.scale});
     transition: all 0.25s ease;
     transform-origin: left top;
   }
@@ -285,7 +304,7 @@ const StyledAnnotation = styled.div<{ annotation: AnnotationSubStore, scale: num
     width: 8px;
     height: 8px;
     background: white;
-    border: 1px solid darkgray;
+    border: 1px solid ${({ annotation }) => colors[annotation.label]};
     border-radius: 1px;
     z-index: 200;
     visibility: hidden;
@@ -494,6 +513,7 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
     if (annotation.creationEvent) {
       rightDraggable.startDrag(annotation.creationEvent);
       bottomDraggable.startDrag(annotation.creationEvent);
+      annotation.select();
     }
 
     return () => {
@@ -566,7 +586,7 @@ const StyledAnnotationItem = styled.div<{ annotation: AnnotationSubStore }>`
     border-color: purple;
   }
 
-  span {
+  > span {
     color: ${({ annotation }) => colors[annotation.label]};
   }
 
@@ -591,9 +611,6 @@ const AnnotationItem: FC<AnnotationItemProps> = observer(({ annotation }) => {
         annotation={annotation}
         onClick={annotation.select}
       >
-        <span className="text">{annotation.label}</span>
-        <span className="buttons">
-        <Button danger onClick={annotation.remove}>Remove</Button>
         <Dropdown
           trigger={["click"]}
           visible={relabelIsVisible}
@@ -610,9 +627,15 @@ const AnnotationItem: FC<AnnotationItemProps> = observer(({ annotation }) => {
               ))}
             </Menu>
           }>
-          <Button onClick={() => setRelabelIsVisible(true)}>Relabel</Button>
+          <Button onClick={() => setRelabelIsVisible(true)}
+                  style={{ color: colors[annotation.label] }}>{annotation.label}</Button>
         </Dropdown>
-      </span>
+        <span className="buttons">
+          <Button
+            onClick={annotation.isVisible ? annotation.hide : annotation.show}>{annotation.isVisible ? 'Hide' : 'Show'}</Button>
+          <Button danger onClick={annotation.remove}>Remove</Button>
+
+        </span>
       </StyledAnnotationItem> :
       <div/>
   );
@@ -631,35 +654,40 @@ const StyledOrigin = styled.div<{ annotation: OriginalSubStore, scale: number }>
   width: ${({ annotation }) => annotation.width}px;
   height: ${({ annotation }) => annotation.height}px;
   background: ${({ annotation }) => colors[annotation.label]}30;
-  border: ${({ scale }) => 0.05 * scale}rem solid ${({ annotation }) => colors[annotation.label]};
+  border: 1px solid ${({ annotation }) => colors[annotation.label]};
 
   span {
     position: absolute;
     z-index: 75;
     left: 0;
     bottom: 1rem;
-    color: rgba(0, 0, 0, 0.7);
-    background: white;
-    padding: 0.2rem 0.4rem;
+    color: black;
+    background: rgba(255, 255, 255, .7);
+    padding: 0 0.2rem;
     border-radius: 0 0.2rem 0.2rem 0;
-    transform: scale(${({ scale }) => scale});
+    transform: scale(${({ scale }) => 1 / scale});
     transition: all 0.25s ease;
     transform-origin: left top;
+    white-space: nowrap;
   }
 `;
 
-const Original: FC<OriginalProps> = ({ annotation }) => {
+const Original: FC<OriginalProps> = observer(({ annotation }) => {
+  const { annotationTool } = useStores();
+
   return (
     annotationTool.isOriginShown ?
-    <StyledOrigin annotation={annotation} scale={annotationTool.scale}>
-      <span>{annotation.label} {annotation.confidenceFormatted}</span>
-    </StyledOrigin> :
-    <div />
+      <StyledOrigin annotation={annotation} scale={annotationTool.scale}>
+        <span>{annotation.label} {annotation.confidenceFormatted}</span>
+      </StyledOrigin> :
+      <div/>
   );
-};
+});
 
 // app
 const App = observer(() => {
+  const { annotationTool } = useStores();
+
   const onZoomHandler = (r: ReactZoomPanPinchRef) => {
     annotationTool.scale = 1 / r.state.scale;
   };
@@ -714,6 +742,10 @@ const App = observer(() => {
 const StyledApp = styled.div`
   display: flex;
 
+  #image-wrapper {
+    position: relative;
+  }
+  
   .annotation-list {
     display: flex;
     flex-direction: column;
@@ -721,6 +753,6 @@ const StyledApp = styled.div`
   }
 `;
 
-(window as any).annotationTool = annotationTool;
+(window as any).rootStore = rootStore;
 
 export default App;
