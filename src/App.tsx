@@ -8,16 +8,18 @@ import {
 import styled from "styled-components";
 import { gsap } from "gsap";
 import { Draggable } from "gsap/Draggable";
-import { Menu, Dropdown, Button } from 'antd';
+import { Menu, Dropdown, Button, Radio } from 'antd';
 import { v4 as uuid } from 'uuid';
-import { makeAutoObservable, reaction } from 'mobx';
+import { makeAutoObservable, reaction, runInAction } from 'mobx';
 import numeral from 'numeral';
 import { observer } from 'mobx-react';
 
 gsap.registerPlugin(Draggable);
 
 // interfaces
-type TLabel = 'unlabeled' | 'pylon' | 'farm' | 'gold_mine';
+type TLabel = 'Choose label...' | 'pylon' | 'farm' | 'gold_mine';
+
+type TTool = 'pan' | 'drag' | 'annotate';
 
 interface IBoundingBox {
   id: string;
@@ -40,7 +42,7 @@ const labels: TLabel[] = [
 ];
 
 const colors = {
-  unlabeled: "#888888",
+  'Choose label...': "#888888",
   pylon: "#0000FF",
   farm: "#FF0000",
   gold_mine: "#9d9d00"
@@ -99,6 +101,7 @@ class AnnotationSubStore {
   exists: boolean;
   creationEvent?: MouseEvent;
   private _visible: boolean;
+  private _context: boolean;
 
   constructor(annotationTool: AnnotationToolStore, box: IBoundingBox, creationEvent?: MouseEvent) {
     makeAutoObservable(this);
@@ -115,9 +118,13 @@ class AnnotationSubStore {
     this.exists        = true;
     this.creationEvent = creationEvent;
     this._visible      = true;
+    this._context      = false;
 
     reaction(() => this.annotationTool.selectedId,
-      selectedId => this._selected = selectedId === this.id);
+      selectedId => {
+        this._selected = this.id === selectedId;
+        this.closeContext();
+      });
   }
 
   set label(newLabel: TLabel) {
@@ -138,7 +145,23 @@ class AnnotationSubStore {
 
   get isVisible(): boolean {
     return this._visible;
-  }
+  };
+
+  get isLabelShown(): boolean {
+    return this.annotationTool.areLabelsShown;
+  };
+
+  get isDraggable(): boolean {
+    return !this.annotationTool.isDragDisabled;
+  };
+
+  get isContextVisible(): boolean {
+    return this._context;
+  };
+
+  openContext = () => this._context = true;
+
+  closeContext = () => this._context = false;
 
   select = () => this.annotationTool.selectAnnotation(this.id);
 
@@ -181,8 +204,12 @@ class AnnotationToolStore {
 
   private _scale: number;
   private _pan: boolean;
+  private _drag: boolean;
   selectedId?: string;
   private originShown: boolean;
+  private labelsShown: boolean;
+  private handleMouseDown?: (e: MouseEvent) => void;
+  private _tool: TTool;
 
   constructor(boxes: IBoundingBox[]) {
     makeAutoObservable(this);
@@ -191,7 +218,23 @@ class AnnotationToolStore {
     this.originals   = boxes.map(box => new OriginalSubStore(box));
     this._scale      = 1;
     this._pan        = true;
+    this._drag       = false;
+    this._tool       = 'pan';
     this.originShown = false;
+    this.labelsShown = true;
+
+    reaction(() => this._tool,
+      tool => {
+        this.disableToolbarOptions();
+        switch (tool) {
+          case 'pan':
+            return this.enablePan();
+          case 'drag':
+            return this.enableDrag();
+          case 'annotate':
+            return this.add();
+        }
+      });
   }
 
   set scale(newScale: number) {
@@ -206,9 +249,29 @@ class AnnotationToolStore {
     return !this._pan;
   };
 
+  get isDragDisabled(): boolean {
+    return !this._drag;
+  };
+
   get isOriginShown(): boolean {
     return this.originShown;
-  }
+  };
+
+  get areLabelsShown(): boolean {
+    return this.labelsShown;
+  };
+
+  get tool(): TTool {
+    return this._tool;
+  };
+
+  set tool(newTool: TTool) {
+    if (newTool !== this._tool) this._tool = newTool;
+  };
+
+  showLabels = () => this.labelsShown = true;
+
+  hideLabels = () => this.labelsShown = false;
 
   enablePan = () => this._pan = true;
 
@@ -221,6 +284,10 @@ class AnnotationToolStore {
   showOrigin = () => this.originShown = true;
 
   hideOrigin = () => this.originShown = false;
+
+  enableDrag = () => this._drag = true;
+
+  disableDrag = () => this._drag = false;
 
   add = () => {
     const wrapper = document.getElementById('image-wrapper') as HTMLElement;
@@ -235,15 +302,23 @@ class AnnotationToolStore {
           topLeftY: creationEvent.clientY,
           height: 0,
           width: 0,
-          value: 'unlabeled'
+          value: 'Choose label...'
         }
       };
+      const newAnnotation        = new AnnotationSubStore(this, newBox, creationEvent);
 
-      this.annotations.push(new AnnotationSubStore(this, newBox, creationEvent));
+      runInAction(() => {
+        this.hideLabels();
+        this.annotations.push(newAnnotation);
+        this.handleMouseDown = addNewAnnotation;
+      });
       wrapper.removeEventListener('mousedown', addNewAnnotation);
 
       const reEnablePan = () => {
-        this.enablePan();
+        runInAction(() => {
+          this.showLabels();
+          this.tool = 'drag';
+        });
         wrapper.removeEventListener('mouseup', reEnablePan);
       };
 
@@ -252,6 +327,15 @@ class AnnotationToolStore {
 
     this.disablePan();
     wrapper.addEventListener('mousedown', addNewAnnotation);
+  };
+
+  private disableToolbarOptions = () => {
+    this.disablePan();
+    this.disableDrag();
+    if (this.handleMouseDown) {
+      document.getElementById('image-wrapper')?.removeEventListener('mousedown', this.handleMouseDown);
+      this.handleMouseDown = undefined;
+    }
   };
 }
 
@@ -274,14 +358,14 @@ interface AnnotationProps {
   annotation: AnnotationSubStore;
 }
 
-const StyledAnnotation = styled.div<{ annotation: AnnotationSubStore, scale: number }>`
+const StyledAnnotation = styled.div<{ annotation: AnnotationSubStore, scale: number, visible: boolean, draggable: boolean }>`
   position: absolute;
-  z-index: 100;
   background: ${({ annotation }) => colors[annotation.label]}30;
   border: 1px solid ${({ annotation }) => colors[annotation.label]};
   transition: background 0.15s;
+  visibility: ${({ visible }) => visible ? 'visible' : 'hidden'};
 
-  &:hover {
+  &[draggable="true"]:hover {
     background: ${({ annotation }) => colors[annotation.label]}50;
   }
 
@@ -289,7 +373,7 @@ const StyledAnnotation = styled.div<{ annotation: AnnotationSubStore, scale: num
     position: absolute;
     z-index: 500;
     left: 0;
-    top: 1rem;
+    top: 0;
     background: rgba(0, 0, 0, 0.7);
     color: white;
     padding: 0 0.2rem;
@@ -310,11 +394,11 @@ const StyledAnnotation = styled.div<{ annotation: AnnotationSubStore, scale: num
     visibility: hidden;
   }
 
-  &.selected {
+  &[draggable="true"].selected {
     background: ${({ annotation }) => colors[annotation.label]}50;
-    
+
     .drag {
-      visibility: visible;
+      visibility: ${({ visible }) => visible ? 'visible' : 'hidden'};
     }
   }
 
@@ -376,20 +460,23 @@ const StyledAnnotation = styled.div<{ annotation: AnnotationSubStore, scale: num
 `;
 
 const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
-  const [isContextVisible, setIsContextVisible] = useState<boolean>(false);
-
   const onClickLabel = (label: TLabel) => {
     annotation.label = label;
-    setIsContextVisible(false);
+    annotation.closeContext();
   };
 
   const onClickRemove = () => {
     annotation.remove();
-    setIsContextVisible(false);
+    annotation.closeContext();
+  };
+
+  const onClickHide = () => {
+    annotation.hide();
+    annotation.closeContext();
   };
 
   const handleVisibleChange = (flag: boolean) => {
-    setIsContextVisible(flag);
+    flag ? annotation.openContext() : annotation.closeContext();
   };
 
   useEffect(() => {
@@ -403,8 +490,16 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
       cursor: "move",
       bounds: "#image-wrapper",
       type: "x,y",
-      allowContextMenu: true
+      allowContextMenu: true,
+      onPress: function () {
+        annotation.select();
+        annotation.closeContext();
+      }
     });
+
+    draggable.disable();
+    reaction(() => annotation.isDraggable,
+      isDraggable => isDraggable ? draggable.enable() : draggable.disable());
 
     const $right  = document.createElement("div");
     const $top    = document.createElement("div");
@@ -531,14 +626,15 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
   return (
     annotation.exists ?
       <Dropdown
-        visible={isContextVisible}
+        visible={annotation.isContextVisible}
         onVisibleChange={handleVisibleChange}
-        trigger={['contextMenu']}
+        trigger={annotation.isDraggable ? ['contextMenu'] : []}
         overlay={
           <Menu>
             <Menu.SubMenu title="Relabel" key="relabel-menu">
               {labels.map(label => <Menu.Item key={label} onClick={() => onClickLabel(label)}>{label}</Menu.Item>)}
             </Menu.SubMenu>
+            <Menu.Item key="hide" onClick={onClickHide}>Hide</Menu.Item>
             <Menu.Divider/>
             <Menu.Item key="delete" onClick={onClickRemove} danger>Remove</Menu.Item>
           </Menu>
@@ -549,9 +645,10 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
           className={`${annotation.isSelected ? 'selected' : ''}`}
           scale={annotation.scale}
           annotation={annotation}
-          onClickCapture={annotation.select}
+          visible={annotation.isVisible}
+          draggable={annotation.isDraggable}
         >
-          <span>{annotation.label}</span>
+          {annotation.isLabelShown && <span>{annotation.label}</span>}
           <div className="drag right"/>
           <div className="drag bottom"/>
           <div className="drag top"/>
@@ -601,7 +698,7 @@ const StyledAnnotationItem = styled.div<{ annotation: AnnotationSubStore }>`
 const AnnotationItem: FC<AnnotationItemProps> = observer(({ annotation }) => {
   const [relabelIsVisible, setRelabelIsVisible] = useState<boolean>(false);
 
-  const onRelable = (newLabel: TLabel) => {
+  const onRelabel = (newLabel: TLabel) => {
     annotation.label = newLabel;
     setRelabelIsVisible(false);
   };
@@ -622,7 +719,7 @@ const AnnotationItem: FC<AnnotationItemProps> = observer(({ annotation }) => {
               {labels.map((label, index) => (
                 <Menu.Item
                   key={index}
-                  onClick={() => onRelable(label)}
+                  onClick={() => onRelabel(label)}
                 >
                   {label}
                 </Menu.Item>
@@ -645,7 +742,7 @@ const AnnotationItem: FC<AnnotationItemProps> = observer(({ annotation }) => {
 
 // original layer sub component
 interface OriginalProps {
-  annotation: OriginalSubStore;
+  origin: OriginalSubStore;
 }
 
 const StyledOrigin = styled.div<{ annotation: OriginalSubStore, scale: number }>`
@@ -662,7 +759,7 @@ const StyledOrigin = styled.div<{ annotation: OriginalSubStore, scale: number }>
     position: absolute;
     z-index: 75;
     left: 0;
-    bottom: 1rem;
+    bottom: 0;
     color: black;
     background: rgba(255, 255, 255, .7);
     padding: 0 0.2rem;
@@ -674,28 +771,44 @@ const StyledOrigin = styled.div<{ annotation: OriginalSubStore, scale: number }>
   }
 `;
 
-const Original: FC<OriginalProps> = observer(({ annotation }) => {
+const Original: FC<OriginalProps> = observer(({ origin }) => {
   const { annotationTool } = useStores();
 
   return (
     annotationTool.isOriginShown ?
-      <StyledOrigin annotation={annotation} scale={annotationTool.scale}>
-        <span>{annotation.label} {annotation.confidenceFormatted}</span>
+      <StyledOrigin annotation={origin} scale={annotationTool.scale}>
+        {annotationTool.areLabelsShown && <span>{origin.label} ({origin.confidenceFormatted})</span>}
       </StyledOrigin> :
       <div/>
   );
 });
 
 // app
+const StyledApp = styled.div`
+  display: flex;
+
+  #image-wrapper {
+    position: relative;
+  }
+
+  .annotation-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .tool-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+  }
+`;
+
 const App = observer(() => {
   const { annotationTool } = useStores();
 
   const onZoomHandler = (r: ReactZoomPanPinchRef) => {
     annotationTool.scale = 1 / r.state.scale;
-  };
-
-  const onAddNew = () => {
-    annotationTool.add();
   };
 
   return (
@@ -706,14 +819,14 @@ const App = observer(() => {
         wheel={{ step: 0.05 }}
       >
         <TransformComponent>
-          <div id="image-wrapper">
+          <div id="image-wrapper" onContextMenu={(e) => e.preventDefault()}>
             <img
               src="https://images.pexels.com/photos/1458377/pexels-photo-1458377.jpeg?auto=compress&cs=tinysrgb&h=750&w=1260"
               alt="input"
               style={{ verticalAlign: "middle" }}
             />
             {annotationTool.originals.map(origin => (
-              <Original key={origin.id} annotation={origin}/>
+              <Original key={origin.id} origin={origin}/>
             ))}
             {annotationTool.annotations.map(annotation => (
               <Annotation
@@ -732,28 +845,26 @@ const App = observer(() => {
             annotation={annotation}
           />
         ))}
-        <Button onClick={onAddNew}>New Annotation</Button>
-        <Button onClick={annotationTool.isOriginShown ? annotationTool.hideOrigin : annotationTool.showOrigin}>
-          {annotationTool.isOriginShown ? 'Hide Predictions' : 'Show Predictions'}
-        </Button>
+
+        <div className="tool-buttons">
+          <Radio.Group value={annotationTool.tool}>
+            <Radio.Button value="pan" onClick={() => annotationTool.tool = 'pan'}>Pan / Zoom</Radio.Button>
+            <Radio.Button value="drag" onClick={() => annotationTool.tool = 'drag'}>Drag / Resize</Radio.Button>
+            <Radio.Button value="annotate" onClick={() => annotationTool.tool = 'annotate'}>Annotate</Radio.Button>
+          </Radio.Group>
+        </div>
+        <div className="tool-buttons">
+          <Button onClick={annotationTool.isOriginShown ? annotationTool.hideOrigin : annotationTool.showOrigin}>
+            {annotationTool.isOriginShown ? 'Hide Predictions' : 'Show Predictions'}
+          </Button>
+          <Button onClick={annotationTool.areLabelsShown ? annotationTool.hideLabels : annotationTool.showLabels}>
+            {annotationTool.areLabelsShown ? 'Hide Labels' : 'Show Labels'}
+          </Button>
+        </div>
       </div>
     </StyledApp>
   );
 });
-
-const StyledApp = styled.div`
-  display: flex;
-
-  #image-wrapper {
-    position: relative;
-  }
-  
-  .annotation-list {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-`;
 
 (window as any).rootStore = rootStore;
 
