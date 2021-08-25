@@ -1,0 +1,13 @@
+<svg
+  width="14"
+  height="15"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path
+    d="M1.261 1.038a.5.5 0 00-.653.653l4.918 11.861a.5.5 0 00.952-.093L7.57 8l5.459-1.092a.5.5 0 00.093-.952L1.262 1.038z"
+    stroke="#000"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

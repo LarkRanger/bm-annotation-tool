@@ -1,0 +1,28 @@
+<svg
+  width="16"
+  height="17"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path
+    d="M14.4 2.46H1.6v12.8h12.8V2.46z"
+    stroke="#1C1A32"
+  />
+  <path
+    d="M3.5 2.86a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"
+    fill="#fff"
+    stroke="#1C1A32"
+  />
+  <circle
+    cx="14"
+    cy="2.86"
+    r="1.5"
+    fill="#fff"
+    stroke="#1C1A32"
+  />
+  <path
+    d="M15.5 14.86a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM3.5 14.86a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"
+    fill="#fff"
+    stroke="#1C1A32"
+  />
+</svg>

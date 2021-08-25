@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import React, { FC, useCallback } from 'react';
 import styled from 'styled-components';
 import { observer } from 'mobx-react';
 import { Button, Radio } from 'antd';
@@ -8,6 +8,7 @@ import { useStores } from '../../hooks/useStores';
 import ListItem from './Components/ListItem';
 import Annotation from './Components/Annotation';
 import Origin from './Components/Origin';
+import { useKeyPress } from '../../hooks/useKeyPress';
 
 interface AnnotationToolProps {
 }
@@ -24,6 +25,16 @@ const AnnotationTool: FC<AnnotationToolProps> = observer(() => {
     console.log(r.state);
     annotationStore.position = [r.state.positionX, r.state.positionY];
   };
+
+  const choosePan = useCallback(() => annotationStore.tool = 'pan', [annotationStore]);
+
+  const chooseDrag = useCallback(() => annotationStore.tool = 'drag', [annotationStore]);
+
+  const chooseAnnotate = useCallback(() => annotationStore.tool = 'annotate', [annotationStore]);
+
+  useKeyPress('m', choosePan);
+  useKeyPress('v', chooseDrag);
+  useKeyPress('x', chooseAnnotate);
 
   return (
     <Container>
@@ -64,9 +75,9 @@ const AnnotationTool: FC<AnnotationToolProps> = observer(() => {
 
         <div className="tool-buttons">
           <Radio.Group value={annotationStore.tool}>
-            <Radio.Button value="pan" onClick={() => annotationStore.tool = 'pan'}>Pan / Zoom</Radio.Button>
-            <Radio.Button value="drag" onClick={() => annotationStore.tool = 'drag'}>Drag / Resize</Radio.Button>
-            <Radio.Button value="annotate" onClick={() => annotationStore.tool = 'annotate'}>Annotate</Radio.Button>
+            <Radio.Button value="pan" onClick={choosePan}>Pan / Zoom</Radio.Button>
+            <Radio.Button value="drag" onClick={chooseDrag}>Drag / Resize</Radio.Button>
+            <Radio.Button value="annotate" onClick={chooseAnnotate}>Annotate</Radio.Button>
           </Radio.Group>
         </div>
         <div className="tool-buttons">

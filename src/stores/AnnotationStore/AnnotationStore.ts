@@ -131,13 +131,15 @@ export default class AnnotationStore {
     const { left, top } = wrapper.getBoundingClientRect();
 
     const addNewAnnotation = (creationEvent: MouseEvent) => {
+      console.log({mouseLeft: creationEvent.clientX, mouseTop: creationEvent.clientY, left, top, scale: this.scale});
+
       const newBox: IBoundingBox = {
         id: uuid(),
         type: 'defect_detection',
         confidence: 0,
         label: {
-          topLeftX: (creationEvent.clientX - this.position[0] - left) / this.scale,
-          topLeftY: (creationEvent.clientY - this.position[1] - top) / this.scale,
+          topLeftX: (creationEvent.clientX + left / this.scale) * this.scale,
+          topLeftY: (creationEvent.clientY + top / this.scale) * this.scale,
           height: 0,
           width: 0,
           value: 'Choose label...'
