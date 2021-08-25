@@ -10,6 +10,7 @@ import RootStore from '../RootStore';
 export default class AnnotationStore {
   readonly rootStore: RootStore;
 
+  readonly initial: AnnotationItem[];
   private _annotations: AnnotationItem[];
   private _origins: OriginItem[];
 
@@ -29,6 +30,7 @@ export default class AnnotationStore {
     this.rootStore    = rootStore;
     this.labels       = mockLabels;
     this._annotations = boxes.map(box => new AnnotationItem(this, box));
+    this.initial      = [...this._annotations];
     this._origins     = boxes.map(box => new OriginItem(box));
     this._scale       = 1;
     this._pan         = true;
@@ -115,12 +117,18 @@ export default class AnnotationStore {
 
   hideOrigin = () => this._originShown = false;
 
+  getFeedback = () => {
+    const exist = this._annotations.filter(annotation => annotation.exists);
+    const feedback = exist.map(annotation => annotation.feedback);
+    console.log(feedback);
+  };
+
   add = () => {
     const wrapper       = document.getElementById('image-wrapper') as HTMLElement;
     const { left, top } = wrapper.getBoundingClientRect();
 
     const addNewAnnotation = (creationEvent: MouseEvent) => {
-      console.log({mouseLeft: creationEvent.clientX, mouseTop: creationEvent.clientY, left, top, scale: this.scale});
+      console.log({ mouseLeft: creationEvent.clientX, mouseTop: creationEvent.clientY, left, top, scale: this.scale });
 
       const newBox: IBoundingBox = {
         id: uuid(),
@@ -167,6 +175,10 @@ export default class AnnotationStore {
       document.getElementById('image-wrapper')?.removeEventListener('mousedown', this._handleMouseDown);
       this._handleMouseDown = undefined;
     }
+  };
+
+  resetAnnotations = () => {
+    this._annotations = [...this.initial];
   };
 
   reset = () => {

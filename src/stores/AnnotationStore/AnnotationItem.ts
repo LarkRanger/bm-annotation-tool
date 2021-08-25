@@ -4,21 +4,33 @@ import { IBoundingBox } from './interfaces/annotation.interfaces';
 import AnnotationStore from './AnnotationStore';
 import { toColor } from '../../utils/toColor';
 
+interface IBounds {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}
+
+interface IFeedback {
+  label: string;
+  box: [number, number, number, number];
+}
+
 export default class AnnotationItem {
   private annotationTool: AnnotationStore;
 
   readonly id: string;
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
+  private x: number;
+  private y: number;
+  private width: number;
+  private height: number;
   private _exists: boolean;
-  private _creationEvent?: MouseEvent;
   private _label: string;
   private _color: string;
   private _selected: boolean;
   private _visible: boolean;
   private _context: boolean;
+  readonly _creationEvent?: MouseEvent;
 
   constructor(annotationTool: AnnotationStore, box: IBoundingBox, creationEvent?: MouseEvent) {
     makeAutoObservable(this);
@@ -31,12 +43,12 @@ export default class AnnotationItem {
     this.width          = box.label.width;
     this.height         = box.label.height;
     this._exists        = true;
-    this._creationEvent = creationEvent;
     this._label         = box.label.value;
     this._color         = toColor(box.label.value);
     this._selected      = false;
     this._visible       = true;
     this._context       = false;
+    this._creationEvent = creationEvent;
 
     reaction(() => this.annotationTool.selectedId,
       selectedId => {
@@ -60,6 +72,22 @@ export default class AnnotationItem {
 
   get label(): string {
     return this._label;
+  };
+
+  set box(newBounds: IBounds ) {
+    this.x = newBounds.x ?? this.x;
+    this.y = newBounds.y ?? this.y;
+    this.width = newBounds.width ?? this.width;
+    this.height = newBounds.height ?? this.height;
+  };
+
+  get box(): IBounds {
+    return {
+      x: this.x,
+      y: this.y,
+      width: this.width,
+      height: this.height
+    };
   };
 
   get color(): string {
@@ -96,6 +124,18 @@ export default class AnnotationItem {
 
   get creationEvent(): MouseEvent | undefined {
     return this._creationEvent;
+  };
+
+  get feedback(): IFeedback {
+    return {
+      label: this.label,
+      box: [
+        this.x,
+        this.y,
+        this.width,
+        this.height
+      ]
+    };
   };
 
   openContext = () => this._context = true;

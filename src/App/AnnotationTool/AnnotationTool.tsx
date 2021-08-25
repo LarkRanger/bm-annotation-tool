@@ -81,6 +81,10 @@ const AnnotationTool: FC<AnnotationToolProps> = observer(() => {
             {annotationStore.areLabelsShown ? 'Hide Labels' : 'Show Labels'}
           </Button>
         </div>
+        <div className="tool-buttons">
+          <Button onClick={annotationStore.resetAnnotations}>Reset</Button>
+          <Button onClick={annotationStore.getFeedback}>Submit</Button>
+        </div>
       </div>
     </Container>
   );

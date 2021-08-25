@@ -38,17 +38,24 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
   };
 
   useEffect(() => {
+    const initialBox = annotation.box;
     gsap.set(`#${annotation.id}`,
-      { width: annotation.width, height: annotation.height, left: annotation.x, top: annotation.y });
+      { width: initialBox.width, height: initialBox.height, left: initialBox.x, top: initialBox.y });
 
     const { width: tWidth, height: tHeight, x: tLeft, y: tTop } = (document.getElementsByClassName(
       "annotation-wrapper")[0] as HTMLElement).getBoundingClientRect();
+
+    const update = () => annotation.box = (document.getElementById(
+      annotation.id) as HTMLElement).getBoundingClientRect();
 
     const draggable = new Draggable(`#${annotation.id}`, {
       cursor: "move",
       bounds: "#image-wrapper",
       type: "x,y",
       allowContextMenu: true,
+      onDragEnd: function () {
+        update();
+      },
       onPress: function () {
         annotation.select();
         annotation.closeContext();
@@ -84,6 +91,9 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
           gsap.set(`#${annotation.id}`, { width: `-=${diff}` });
         }
       },
+      onDragEnd: function () {
+        update();
+      },
       onPress: function () {
         draggable.disable();
       },
@@ -110,6 +120,9 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
           const diff = (mouse - top) / scale;
           gsap.set(`#${annotation.id}`, { height: `-=${diff}`, top: `+=${diff}` });
         }
+      },
+      onDragEnd: function () {
+        update();
       },
       onPress: function () {
         draggable.disable();
@@ -138,6 +151,9 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
           gsap.set(`#${annotation.id}`, { height: `-=${diff}` });
         }
       },
+      onDragEnd: function () {
+        update();
+      },
       onPress: function () {
         draggable.disable();
       },
@@ -164,6 +180,9 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
           const diff = (mouse - left) / scale;
           gsap.set(`#${annotation.id}`, { width: `-=${diff}`, left: `+=${diff}` });
         }
+      },
+      onDragEnd: function () {
+        update();
       },
       onPress: function () {
         draggable.disable();
