@@ -1,9 +1,10 @@
+import React, { FC } from 'react';
 import styled from 'styled-components';
 import { observer } from 'mobx-react';
-import { useStores } from '../../hooks/useStores';
-import { ReactZoomPanPinchRef, TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { Button, Radio } from 'antd';
-import React, { FC } from 'react';
+import { ReactZoomPanPinchRef, TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
+
+import { useStores } from '../../hooks/useStores';
 import ListItem from './Components/ListItem';
 import Annotation from './Components/Annotation';
 import Origin from './Components/Origin';
@@ -15,7 +16,13 @@ const AnnotationTool: FC<AnnotationToolProps> = observer(() => {
   const { annotationStore } = useStores();
 
   const onZoomHandler = (r: ReactZoomPanPinchRef) => {
+    console.log(r.state);
     annotationStore.scale = 1 / r.state.scale;
+  };
+
+  const onPanStop = (r: ReactZoomPanPinchRef) => {
+    console.log(r.state);
+    annotationStore.position = [r.state.positionX, r.state.positionY];
   };
 
   return (
@@ -23,9 +30,11 @@ const AnnotationTool: FC<AnnotationToolProps> = observer(() => {
       <TransformWrapper
         disabled={annotationStore.isPanDisabled}
         onZoomStop={onZoomHandler}
+        onPanningStop={onPanStop}
         wheel={{ step: 0.05 }}
+        alignmentAnimation={{ disabled: true }}
       >
-        <TransformComponent>
+        <TransformComponent wrapperClass="annotation-wrapper">
           <div id="image-wrapper" onContextMenu={(e) => e.preventDefault()}>
             <img
               src="https://images.pexels.com/photos/1458377/pexels-photo-1458377.jpeg?auto=compress&cs=tinysrgb&h=750&w=1260"

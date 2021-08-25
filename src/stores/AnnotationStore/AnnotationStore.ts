@@ -16,6 +16,7 @@ export default class AnnotationStore {
   readonly labels: string[];
   private _selectedId?: string;
   private _scale: number;
+  private _position: [number, number];
   private _pan: boolean;
   private _drag: boolean;
   private _tool: TTool;
@@ -26,11 +27,12 @@ export default class AnnotationStore {
   constructor(boxes: IBoundingBox[], rootStore: RootStore) {
     makeAutoObservable(this);
 
-    this.rootStore = rootStore;
+    this.rootStore    = rootStore;
     this.labels       = mockLabels;
     this._annotations = boxes.map(box => new AnnotationItem(this, box));
     this._origins     = boxes.map(box => new OriginItem(box));
     this._scale       = 1;
+    this._position    = [0, 0];
     this._pan         = true;
     this._drag        = false;
     this._tool        = 'pan';
@@ -65,7 +67,16 @@ export default class AnnotationStore {
 
   get scale(): number {
     return this._scale;
-  }
+  };
+
+
+  set position(newPosition: [number, number]) {
+    this._position = newPosition;
+  };
+
+  get position(): [number, number] {
+    return this._position;
+  };
 
   get isPanDisabled(): boolean {
     return !this._pan;
@@ -116,7 +127,8 @@ export default class AnnotationStore {
   hideOrigin = () => this._originShown = false;
 
   add = () => {
-    const wrapper = document.getElementById('image-wrapper') as HTMLElement;
+    const wrapper       = document.getElementById('image-wrapper') as HTMLElement;
+    const { left, top } = wrapper.getBoundingClientRect();
 
     const addNewAnnotation = (creationEvent: MouseEvent) => {
       const newBox: IBoundingBox = {
@@ -124,14 +136,15 @@ export default class AnnotationStore {
         type: 'defect_detection',
         confidence: 0,
         label: {
-          topLeftX: creationEvent.clientX,
-          topLeftY: creationEvent.clientY,
+          topLeftX: (creationEvent.clientX - this.position[0] - left) / this.scale,
+          topLeftY: (creationEvent.clientY - this.position[1] - top) / this.scale,
           height: 0,
           width: 0,
           value: 'Choose label...'
         }
       };
-      const newAnnotation        = new AnnotationItem(this, newBox, creationEvent);
+
+      const newAnnotation = new AnnotationItem(this, newBox, creationEvent);
 
       runInAction(() => {
         this.hideLabels();
@@ -156,6 +169,7 @@ export default class AnnotationStore {
   };
 
   private disableToolbarOptions = () => {
+    this.deselect();
     this.disablePan();
     this.disableDrag();
     if (this._handleMouseDown) {

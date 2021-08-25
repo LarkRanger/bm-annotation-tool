@@ -19,12 +19,16 @@ const ListItem: FC<ListItemProps> = observer(({ annotation }) => {
     setRelabelIsVisible(false);
   };
 
+  const handleClick = () => {
+    annotation.isDraggable && annotation.select();
+  };
+
   return (
     annotation.exists ?
       <Container
         className={`${annotation.isSelected ? 'selected' : ''}`}
         annotation={annotation}
-        onClick={annotation.select}
+        onClick={handleClick}
       >
         <Dropdown
           trigger={["click"]}

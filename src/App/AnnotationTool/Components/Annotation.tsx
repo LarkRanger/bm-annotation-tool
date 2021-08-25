@@ -41,8 +41,8 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
     gsap.set(`#${annotation.id}`,
       { width: annotation.width, height: annotation.height, left: annotation.x, top: annotation.y });
 
-    const { width: wWidth, height: wHeight, x: wLeft, y: wTop } = (document.getElementById(
-      "image-wrapper") as HTMLElement).getBoundingClientRect();
+    const { width: tWidth, height: tHeight, x: tLeft, y: tTop } = (document.getElementsByClassName(
+      "annotation-wrapper")[0] as HTMLElement).getBoundingClientRect();
 
     const draggable = new Draggable(`#${annotation.id}`, {
       cursor: "move",
@@ -67,18 +67,20 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
     const rightDraggable  = new Draggable($right, {
       trigger: `#${annotation.id} .right, #${annotation.id} .topRight, #${annotation.id} .bottomRight`,
       onDrag: function (event: PointerEvent) {
-        const div             = document.getElementById(annotation.id) as HTMLElement;
-        const scale           = Number(div.getAttribute('scale'));
-        const mouse           = Math.min(event.clientX, wWidth + wLeft);
-        const { left, right } = div.getBoundingClientRect();
+        const div                            = document.getElementById(annotation.id) as HTMLElement;
+        const { left, right }                = div.getBoundingClientRect();
+        const scale                          = Number(div.getAttribute('scale'));
+        const wrapper                        = document.getElementById("image-wrapper") as HTMLElement;
+        const { left: wLeft, width: wWidth } = wrapper.getBoundingClientRect();
+        const mouse                          = Math.min(event.clientX, tWidth + tLeft, wWidth + wLeft);
 
         if (mouse < left) {
-          const diff = (mouse - left) * scale;
+          const diff = (mouse - left) / scale;
           gsap.set(`#${annotation.id}`, { left: `=${mouse}`, width: `=${diff}` });
           rightDraggable.endDrag(event);
           leftDraggable.startDrag(event);
         } else {
-          const diff = (right - mouse) * scale;
+          const diff = (right - mouse) / scale;
           gsap.set(`#${annotation.id}`, { width: `-=${diff}` });
         }
       },
@@ -93,17 +95,19 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
       trigger: `#${annotation.id} .top, #${annotation.id} .topRight, #${annotation.id} .topLeft`,
       onDrag: function (event) {
         const div             = document.getElementById(annotation.id) as HTMLElement;
-        const scale           = Number(div.getAttribute('scale'));
-        const mouse           = Math.max(event.clientY, wTop);
         const { top, bottom } = div.getBoundingClientRect();
+        const scale           = Number(div.getAttribute('scale'));
+        const wrapper         = document.getElementById("image-wrapper") as HTMLElement;
+        const { top: wTop }   = wrapper.getBoundingClientRect();
+        const mouse           = Math.max(event.clientY, tTop, wTop);
 
         if (mouse > bottom) {
-          const diff = (mouse - bottom) * scale;
+          const diff = (mouse - bottom) / scale;
           gsap.set(`#${annotation.id}`, { top: `=${bottom}`, height: `=${diff}` });
           topDraggable.endDrag(event);
           bottomDraggable.startDrag(event);
         } else {
-          const diff = (mouse - top) * scale;
+          const diff = (mouse - top) / scale;
           gsap.set(`#${annotation.id}`, { height: `-=${diff}`, top: `+=${diff}` });
         }
       },
@@ -117,18 +121,20 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
     const bottomDraggable = new Draggable($bottom, {
       trigger: `#${annotation.id} .bottom, #${annotation.id} .bottomRight, #${annotation.id} .bottomLeft`,
       onDrag: function (event) {
-        const div             = document.getElementById(annotation.id) as HTMLElement;
-        const scale           = Number(div.getAttribute('scale'));
-        const mouse           = Math.min(event.clientY, wTop + wHeight);
-        const { top, bottom } = div.getBoundingClientRect();
+        const div                            = document.getElementById(annotation.id) as HTMLElement;
+        const { top, bottom }                = div.getBoundingClientRect();
+        const scale                          = Number(div.getAttribute('scale'));
+        const wrapper                        = document.getElementById("image-wrapper") as HTMLElement;
+        const { top: wTop, height: wHeight } = wrapper.getBoundingClientRect();
+        const mouse                          = Math.min(event.clientY, tTop + tHeight, wTop + wHeight);
 
         if (mouse < top) {
-          const diff = (mouse - top) * scale;
+          const diff = (mouse - top) / scale;
           gsap.set(`#${annotation.id}`, { top: `=${mouse}`, height: `=${diff}` });
           bottomDraggable.endDrag(event);
           topDraggable.startDrag(event);
         } else {
-          const diff = (bottom - mouse) * scale;
+          const diff = (bottom - mouse) / scale;
           gsap.set(`#${annotation.id}`, { height: `-=${diff}` });
         }
       },
@@ -143,17 +149,19 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
       trigger: `#${annotation.id} .left, #${annotation.id} .bottomLeft, #${annotation.id} .topLeft`,
       onDrag: function (event: PointerEvent) {
         const div             = document.getElementById(annotation.id) as HTMLElement;
-        const scale           = Number(div.getAttribute('scale'));
-        const mouse           = Math.max(event.clientX, wLeft);
         const { left, right } = div.getBoundingClientRect();
+        const scale           = Number(div.getAttribute('scale'));
+        const wrapper         = document.getElementById("image-wrapper") as HTMLElement;
+        const { left: wLeft } = wrapper.getBoundingClientRect();
+        const mouse           = Math.max(event.clientX, tLeft, wLeft);
 
         if (mouse > right) {
-          const diff = (mouse - right) * scale;
+          const diff = (mouse - right) / scale;
           gsap.set(`#${annotation.id}`, { left: `=${right}`, width: `=${diff}` });
           leftDraggable.endDrag(event);
           rightDraggable.startDrag(event);
         } else {
-          const diff = (mouse - left) * scale;
+          const diff = (mouse - left) / scale;
           gsap.set(`#${annotation.id}`, { width: `-=${diff}`, left: `+=${diff}` });
         }
       },
@@ -190,7 +198,8 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
         overlay={
           <Menu>
             <Menu.SubMenu title="Relabel" key="relabel-menu">
-              {annotationStore.labels.map(label => <Menu.Item key={label} onClick={() => onClickLabel(label)}>{label}</Menu.Item>)}
+              {annotationStore.labels.map(
+                label => <Menu.Item key={label} onClick={() => onClickLabel(label)}>{label}</Menu.Item>)}
             </Menu.SubMenu>
             <Menu.Item key="hide" onClick={onClickHide}>Hide</Menu.Item>
             <Menu.Divider/>
@@ -224,7 +233,7 @@ const Annotation: FC<AnnotationProps> = observer(({ annotation }) => {
 const Container = styled.div<{ annotation: AnnotationItem, scale: number, visible: boolean, draggable: boolean }>`
   position: absolute;
   background: ${({ annotation }) => annotation.color}30;
-  border: 1px solid ${({ annotation }) => annotation.color};
+  border: ${({ annotation }) => `${1 / annotation.scale}px solid ${annotation.color}`};
   transition: background 0.15s;
   visibility: ${({ visible }) => visible ? 'visible' : 'hidden'};
 
