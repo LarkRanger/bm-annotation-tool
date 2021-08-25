@@ -1,0 +1,38 @@
+[
+  {
+    "id": "cd77111d-1fc7-4291-b05d-4c1c69c04637",
+    "type": "defect_detection",
+    "confidence": 0.7,
+    "label": {
+      "topLeftX": 100,
+      "topLeftY": 265,
+      "width": 270,
+      "height": 200,
+      "value": "pylon"
+    }
+  },
+  {
+    "id": "94d699f7-779e-49e7-90cc-99c8dc28cffc",
+    "type": "defect_detection",
+    "confidence": 0.8,
+    "label": {
+      "topLeftX": 50,
+      "topLeftY": 50,
+      "width": 100,
+      "height": 100,
+      "value": "farm"
+    }
+  },
+  {
+    "id": "60bee2ac-1936-4af7-8cb6-f5ab15ecb40e",
+    "type": "defect_detection",
+    "confidence": 0.9,
+    "label": {
+      "topLeftX": 60,
+      "topLeftY": 60,
+      "height": 70,
+      "width": 70,
+      "value": "gold_mine"
+    }
+  }
+]
