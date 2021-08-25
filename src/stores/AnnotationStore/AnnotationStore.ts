@@ -118,7 +118,7 @@ export default class AnnotationStore {
   hideOrigin = () => this._originShown = false;
 
   getFeedback = () => {
-    const exist = this._annotations.filter(annotation => annotation.exists);
+    const exist    = this._annotations.filter(annotation => annotation.exists);
     const feedback = exist.map(annotation => annotation.feedback);
     console.log(feedback);
   };
@@ -128,15 +128,13 @@ export default class AnnotationStore {
     const { left, top } = wrapper.getBoundingClientRect();
 
     const addNewAnnotation = (creationEvent: MouseEvent) => {
-      console.log({ mouseLeft: creationEvent.clientX, mouseTop: creationEvent.clientY, left, top, scale: this.scale });
-
       const newBox: IBoundingBox = {
         id: uuid(),
         type: 'defect_detection',
         confidence: 0,
         label: {
-          topLeftX: (creationEvent.clientX + left / this.scale) * this.scale,
-          topLeftY: (creationEvent.clientY + top / this.scale) * this.scale,
+          topLeftX: (creationEvent.clientX - left) / this.scale,
+          topLeftY: (creationEvent.clientY - top) / this.scale,
           height: 0,
           width: 0,
           value: 'Choose label...'
@@ -148,13 +146,13 @@ export default class AnnotationStore {
       runInAction(() => {
         this.hideLabels();
         this._annotations.push(newAnnotation);
+        this.tool = 'drag';
       });
       wrapper.removeEventListener('mousedown', addNewAnnotation);
 
       const reEnablePan = () => {
         runInAction(() => {
           this.showLabels();
-          this.tool = 'drag';
         });
         wrapper.removeEventListener('mouseup', reEnablePan);
       };

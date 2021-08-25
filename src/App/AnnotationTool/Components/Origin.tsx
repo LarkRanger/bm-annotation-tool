@@ -42,7 +42,7 @@ const Container = styled.div<{ annotation: OriginItem, scale: number }>`
     border-radius: 0 0.2rem 0.2rem 0;
     transform: scale(${({ scale }) => 1 / scale});
     transition: all 0.25s ease;
-    transform-origin: left top;
+    transform-origin: left bottom;
     white-space: nowrap;
   }
 `;

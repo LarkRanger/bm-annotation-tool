@@ -26,7 +26,7 @@ const AnnotationTool: FC<AnnotationToolProps> = observer(() => {
 
   const chooseAnnotate = useCallback(() => annotationStore.tool = 'annotate', [annotationStore]);
 
-  useKeyPress('m', choosePan);
+  useKeyPress('h', choosePan);
   useKeyPress('v', chooseDrag);
   useKeyPress('x', chooseAnnotate);
 
