@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { observer } from 'mobx-react';
+import { observer } from 'mobx-react-lite';
 
 import OriginItem from '../../../stores/AnnotationStore/OriginItem';
 import { useStores } from '../../../hooks/useStores';

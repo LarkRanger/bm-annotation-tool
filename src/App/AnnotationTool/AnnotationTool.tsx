@@ -1,6 +1,6 @@
 import React, { FC, useCallback } from 'react';
 import styled from 'styled-components';
-import { observer } from 'mobx-react';
+import { observer } from 'mobx-react-lite';
 import { Button, Radio } from 'antd';
 import { ReactZoomPanPinchRef, TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 

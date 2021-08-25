@@ -1,7 +1,7 @@
 import React, { FC, useEffect } from 'react';
 import styled from 'styled-components';
 import { reaction } from 'mobx';
-import { observer } from 'mobx-react';
+import { observer } from 'mobx-react-lite';
 import { gsap } from 'gsap';
 import { Draggable } from 'gsap/Draggable';
 import { Dropdown, Menu } from 'antd';
