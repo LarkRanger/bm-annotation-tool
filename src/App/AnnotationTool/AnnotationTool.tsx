@@ -17,13 +17,7 @@ const AnnotationTool: FC<AnnotationToolProps> = observer(() => {
   const { annotationStore } = useStores();
 
   const onZoomHandler = (r: ReactZoomPanPinchRef) => {
-    console.log(r.state);
     annotationStore.scale = 1 / r.state.scale;
-  };
-
-  const onPanStop = (r: ReactZoomPanPinchRef) => {
-    console.log(r.state);
-    annotationStore.position = [r.state.positionX, r.state.positionY];
   };
 
   const choosePan = useCallback(() => annotationStore.tool = 'pan', [annotationStore]);
@@ -41,7 +35,6 @@ const AnnotationTool: FC<AnnotationToolProps> = observer(() => {
       <TransformWrapper
         disabled={annotationStore.isPanDisabled}
         onZoomStop={onZoomHandler}
-        onPanningStop={onPanStop}
         wheel={{ step: 0.05 }}
         alignmentAnimation={{ disabled: true }}
       >

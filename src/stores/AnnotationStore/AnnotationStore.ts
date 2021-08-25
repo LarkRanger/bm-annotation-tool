@@ -16,7 +16,6 @@ export default class AnnotationStore {
   readonly labels: string[];
   private _selectedId?: string;
   private _scale: number;
-  private _position: [number, number];
   private _pan: boolean;
   private _drag: boolean;
   private _tool: TTool;
@@ -32,7 +31,6 @@ export default class AnnotationStore {
     this._annotations = boxes.map(box => new AnnotationItem(this, box));
     this._origins     = boxes.map(box => new OriginItem(box));
     this._scale       = 1;
-    this._position    = [0, 0];
     this._pan         = true;
     this._drag        = false;
     this._tool        = 'pan';
@@ -67,15 +65,6 @@ export default class AnnotationStore {
 
   get scale(): number {
     return this._scale;
-  };
-
-
-  set position(newPosition: [number, number]) {
-    this._position = newPosition;
-  };
-
-  get position(): [number, number] {
-    return this._position;
   };
 
   get isPanDisabled(): boolean {
